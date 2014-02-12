@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Test</title>
+    <style>
+        canvas { background: #000; }
+        body { overflow: hidden; margin: 0; padding: 0; } 
+    </style>
+	<script type="text/javascript" src="paper.js"></script>
+	<script type="text/paperscript" canvas="canvas">
+    
+        
+        var mouse = new Point;
+
+        function onMouseMove(event){
+            mouse = event.point;
+        }
+        
+        function onMouseDown(event){
+            sinWave.selected = !sinWave.selected;
+        }
+            
+        var sinWave = (function(){
+        
+            var path = new Path({ strokeColor: '#0f0', strokeWidth: 1 });
+            var numPoints = 96;
+            var numCurves = 8;
+            var distance = view.size.width / numPoints;
+            
+            var height = view.size.height;
+            var offsetHeight = height/2;
+            var waveHeight = height/8;
+            
+            var mouseIntensity = 10000;
+            var mouseProximityWeight = 2.75;
+            
+            var maxStrokeWidth = 10;
+            var multiplier = Math.floor(maxStrokeWidth/2);
+            var adder = Math.ceil(maxStrokeWidth/2);
+            
+            var originalSpots = [];
+            
+            var upperBounds = [view.size.width, view.size.height ];
+            var lowerBounds = [ 0, 0 ];
+            
+            path.init = function(){
+            
+                var divisor = numPoints/numCurves;
+                
+                for ( var i = 0; i < numPoints; i ++ ){
+                    var radians =       Math.PI * i/divisor;
+                    var sinus =         Math.sin( radians ) * waveHeight;
+                    var originalSpot =  new Point(distance * i, sinus + offsetHeight);
+                    var point =         new Point(originalSpot);
+                    
+                    path.add(point);
+                    originalSpots.push(originalSpot);
+                }
+            };
+            
+            path.onFrame = function(event){
+                this.segments.forEach(function(segment, index){
+                    
+                    var originalSpot = originalSpots[index];
+                    var goToOriginalSpot = originalSpot - segment.point;
+                    
+                    goToOriginalSpot = goToOriginalSpot.normalize();
+                    
+                    var goAwayFromMouse = segment.point - mouse;
+                    
+                    goAwayFromMouse *= mouseIntensity / Math.pow( goAwayFromMouse.length, mouseProximityWeight);
+                    
+                    var newLocation = segment.point + goAwayFromMouse + goToOriginalSpot;
+                    
+                    segment.point = Point.max( lowerBounds, Point.min( newLocation, upperBounds )).round();
+                });
+                
+                path.strokeWidth = adder + Math.sin(event.time) * multiplier;
+                path.strokeColor.hue++;
+                path.smooth();
+            }
+            
+            path.selected = true;
+                
+            return path;
+        })();
+    
+        sinWave.init();
+        
+    </script>
+</head>
+<body>
+    <canvas resize="true" id="canvas"></canvas>
+</body>
+</html>
